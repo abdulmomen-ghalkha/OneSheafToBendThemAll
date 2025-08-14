@@ -178,8 +178,10 @@ for epoch in range(50):  # small demo
 
 
 
+model_dir = "models/"
 
-def save_P_Q_all(edges, restrictions, duals, save_path="P_Q_maps.pt"):
+
+def save_P_Q_all(edges, restrictions, duals, save_path=model_dir + "P_Q_maps.pt"):
     pq_data = {}
     
     for (i, j) in edges:
@@ -198,7 +200,7 @@ def save_P_Q_all(edges, restrictions, duals, save_path="P_Q_maps.pt"):
 
 # Save all encoders' state_dict
 encoder_states = {mod: encoders[mod].state_dict() for mod in encoders}
-torch.save(encoder_states, "trained_encoders.pt")
+torch.save(encoder_states, model_dir + "trained_encoders.pt")
 print("Saved all encoder models to trained_encoders.pt")
 
 

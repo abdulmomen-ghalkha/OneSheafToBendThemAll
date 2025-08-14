@@ -175,3 +175,31 @@ for epoch in range(50):  # small demo
         optimizer.step()
     
     print(f"Epoch {epoch+1}, Loss: {total_loss.item():.4f}")
+
+
+
+
+def save_P_Q_all(edges, restrictions, duals, save_path="P_Q_maps.pt"):
+    pq_data = {}
+    
+    for (i, j) in edges:
+        # Restriction maps
+        pq_data[f"P_{i}_to_{i}-{j}"] = restrictions[f"{i}->{i}-{j}"].detach().cpu()
+        pq_data[f"P_{j}_to_{i}-{j}"] = restrictions[f"{j}->{i}-{j}"].detach().cpu()
+
+        # Reconstruction maps
+        pq_data[f"Q_{i}-{j}_to_{i}"] = duals[f"{i}-{j}->{i}"].detach().cpu()
+        pq_data[f"Q_{i}-{j}_to_{j}"] = duals[f"{i}-{j}->{j}"].detach().cpu()
+
+    torch.save(pq_data, save_path)
+    print(f"Saved P and Q maps for {len(edges)} edges to {save_path}")
+
+
+
+# Save all encoders' state_dict
+encoder_states = {mod: encoders[mod].state_dict() for mod in encoders}
+torch.save(encoder_states, "trained_encoders.pt")
+print("Saved all encoder models to trained_encoders.pt")
+
+
+save_P_Q_all(edges, restrictions, duals)

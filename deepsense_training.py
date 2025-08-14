@@ -14,6 +14,8 @@ from models import SymmetricLiDARCNN, RGBPredictionCNN, mmWaveSCRNet
 from data_set import FutureClearWindowDataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+print(f"device: {device}")
 seed = 42
 np.random.seed(seed)
 random.seed(seed)
@@ -78,7 +80,7 @@ num_modalities = 3
 embed_dim = 128
 encoders = nn.ModuleDict({"lidar": SymmetricLiDARCNN(input_channels=2, feature_dim=128),
              "RGB": RGBPredictionCNN(input_channels=4, feature_dim=128),
-             "mmwave": mmWaveSCRNet(input_channels=4, feature_dim=128)})
+             "mmwave": mmWaveSCRNet(input_channels=4, feature_dim=128)}).to(device)
 
 
 modality_node_dict = {0: "lidar", 1: "RGB", 2: "mmwave"}

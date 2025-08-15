@@ -230,32 +230,32 @@ def cross_modal_retrieval(test_loader, query_mod=0, gallery_mod=1, top_k=(1,5,10
 # ====== 5. Run evaluations ======
 if __name__ == "__main__":
     # Zero-shot on raw and reconstructed embeddings
-    zero_shot_eval(test_loader=test_loaders[0], mod_idx=1, use_reconstruction=False)
-    zero_shot_eval(test_loader=test_loaders[0], mod_idx=1, use_reconstruction=True)
+    zero_shot_eval(test_loader=train_dataset[0], mod_idx=1, use_reconstruction=False)
+    zero_shot_eval(test_loader=train_dataset[0], mod_idx=1, use_reconstruction=True)
 
     # Cross-modal retrieval
-    cross_modal_retrieval(test_loader=test_loaders[0], query_mod=1, gallery_mod=0, use_reconstruction=False)
-    cross_modal_retrieval(test_loader=test_loaders[0], query_mod=1, gallery_mod=0, use_reconstruction=True)
+    cross_modal_retrieval(test_loader=train_dataset[0], query_mod=1, gallery_mod=0, use_reconstruction=False)
+    cross_modal_retrieval(test_loader=train_dataset[0], query_mod=1, gallery_mod=0, use_reconstruction=True)
 
 
 
 
 
 
-'''
+
 def encode_modality(node_idx, loader):
     embs = {node_idx: {node_idx:[]}}  # Only reconstruct for the given node_idx
     labels = {node_idx: []}
 
-    for node in range(num_modalities):
-        encoders[node].eval()
+    for idx, modality in modality_node_dict.items():
+        encoders[modality].eval()
 
     with torch.no_grad():
-        for mods, y in loader:
-            mods = [m.to(device) for m in mods]
-            y = y.to(device)
-            for mod_id, x in enumerate(mods):
-                h = encoders[mod_id](x)  # [B, embed_dim]
+        for batch_num, batch in zip(tqdm(range(20)), loader):
+            modalitiy_input = {mod: batch[mod].to(device) for mod in modalities}
+            y = batch["label"].to(device)
+            for mod_id, modality in modality_node_dict.items():
+                h = encoders[modality](modalitiy_input[modality])  # [B, embed_dim]
 
                 if mod_id == node_idx:
                     # Store direct embedding under key 0
@@ -294,98 +294,100 @@ def encode_modality(node_idx, loader):
     return embs, labels
 
 
-embs, labels = encode_modality(1, test_loader)
-
-
-
-
+embs, labels = encode_modality(1, test_loaders[0])
 
 
 
 import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
-node = 1
-all_embeddings = embs[node][0]
-all_labels = labels[node]
-
-X = all_embeddings.cpu().numpy()
-all_labels = all_labels.cpu().numpy()
 
 
-# Run t-SNE to reduce dimensionality to 2D
-tsne = TSNE(n_components=2, perplexity=30, init='pca', random_state=0)
-X_2d = tsne.fit_transform(X)
+for node in modality_node_dict:
+    node = 1
+    all_embeddings = embs[node][node]
+    all_labels = labels[node]
 
-# Plotting: Color by digit class (0–9)
-plt.figure(figsize=(10, 8))
-scatter = plt.scatter(X_2d[:, 0], X_2d[:, 1], c=all_labels, cmap='tab10', alpha=0.7)
-legend = plt.legend(*scatter.legend_elements(), title="Digit Label", loc="best")
-plt.gca().add_artist(legend)
-plt.title("t-SNE of Multi-Modal MNIST Embeddings (Color-coded by Label)")
-plt.xlabel("Dimension 1")
-plt.ylabel("Dimension 2")
-plt.grid(True)
-plt.show()
+    X = all_embeddings.cpu().numpy()
+    all_labels = all_labels.cpu().numpy()
 
 
+    # Run t-SNE to reduce dimensionality to 2D
+    tsne = TSNE(n_components=2, perplexity=30, init='pca', random_state=0)
+    X_2d = tsne.fit_transform(X)
+
+    # Plotting: Color by digit class (0–9)
+    plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(X_2d[:, 0], X_2d[:, 1], c=all_labels, cmap='tab10', alpha=0.7)
+    legend = plt.legend(*scatter.legend_elements(), title="Digit Label", loc="best")
+    plt.gca().add_artist(legend)
+    plt.title(f"t-SNE of Multi-Modal Deepsense6G Embeddings at modality {modality_node_dict[node]} (Color-coded by Label)")
+    plt.xlabel("Dimension 1")
+    plt.ylabel("Dimension 2")
+    plt.grid(True)
+
+    plt.savefig(f"Tsne_node_{node}.png")
 
 
 
-import numpy as np
-import umap
-import matplotlib.pyplot as plt
 
-node = 1
 
-# === Train UMAP on a reference set (direct embeddings) ===
-reference_embeddings = embs[node][0]  # direct embeddings from node 0
-reference_labels = labels[node]
+    import numpy as np
+    import umap
+    import matplotlib.pyplot as plt
 
-X_ref = reference_embeddings.cpu().numpy()
-y_ref = reference_labels.cpu().numpy()
 
-umap_model = umap.UMAP(
-    n_neighbors=15,
-    min_dist=0.1,
-    metric='euclidean',
-    random_state=0
-)
-X_ref_2d = umap_model.fit_transform(X_ref)
+    for projected_node in modality_node_dict:
 
-# === Transform other embeddings (reconstructed from node 1) ===
-X_target = embs[node][1].cpu().numpy()
-y_target = labels[node].cpu().numpy()
-X_target_2d = umap_model.transform(X_target)
+        if projected_node == node:
+            continue
+        # === Train UMAP on a reference set (direct embeddings) ===
+        reference_embeddings = embs[node][projected_node]  # direct embeddings from node 0
+        reference_labels = labels[node]
 
-# === Side-by-side plots ===
-fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+        X_ref = reference_embeddings.cpu().numpy()
+        y_ref = reference_labels.cpu().numpy()
 
-# Plot direct embeddings
-sc1 = axes[0].scatter(
-    X_ref_2d[:, 0], X_ref_2d[:, 1],
-    c=y_ref, cmap='tab10', alpha=0.8
-)
-axes[0].set_title("UMAP Projection (Direct)")
-axes[0].set_xlabel("UMAP-1")
-axes[0].set_ylabel("UMAP-2")
-axes[0].grid(True)
-legend1 = axes[0].legend(*sc1.legend_elements(), title="Digit Label", loc="best")
-axes[0].add_artist(legend1)
+        umap_model = umap.UMAP(
+            n_neighbors=15,
+            min_dist=0.1,
+            metric='euclidean',
+            random_state=0
+        )
+        X_ref_2d = umap_model.fit_transform(X_ref)
 
-# Plot reconstructed embeddings
-sc2 = axes[1].scatter(
-    X_target_2d[:, 0], X_target_2d[:, 1],
-    c=y_target, cmap='tab10', alpha=0.8
-)
-axes[1].set_title("UMAP Projection (Reconstruction)")
-axes[1].set_xlabel("UMAP-1")
-axes[1].set_ylabel("UMAP-2")
-axes[1].grid(True)
-legend2 = axes[1].legend(*sc2.legend_elements(), title="Digit Label", loc="best")
-axes[1].add_artist(legend2)
+        # === Transform other embeddings (reconstructed from node 1) ===
+        X_target = embs[node][1].cpu().numpy()
+        y_target = labels[node].cpu().numpy()
+        X_target_2d = umap_model.transform(X_target)
 
-plt.tight_layout()
-plt.show()
+        # === Side-by-side plots ===
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-'''
+        # Plot direct embeddings
+        sc1 = axes[0].scatter(
+            X_ref_2d[:, 0], X_ref_2d[:, 1],
+            c=y_ref, cmap='tab10', alpha=0.8
+        )
+        axes[0].set_title(f"UMAP Projection of modality {modality_node_dict[node]} (Direct)")
+        axes[0].set_xlabel("UMAP-1")
+        axes[0].set_ylabel("UMAP-2")
+        axes[0].grid(True)
+        legend1 = axes[0].legend(*sc1.legend_elements(), title="Digit Label", loc="best")
+        axes[0].add_artist(legend1)
+
+        # Plot reconstructed embeddings
+        sc2 = axes[1].scatter(
+            X_target_2d[:, 0], X_target_2d[:, 1],
+            c=y_target, cmap='tab10', alpha=0.8
+        )
+        axes[1].set_title(f"UMAP Projection at modality {modality_node_dict[node]} reconstructed from modality {modality_node_dict[projected_node]}")
+        axes[1].set_xlabel("UMAP-1")
+        axes[1].set_ylabel("UMAP-2")
+        axes[1].grid(True)
+        legend2 = axes[1].legend(*sc2.legend_elements(), title="Digit Label", loc="best")
+        axes[1].add_artist(legend2)
+
+        plt.tight_layout()
+
+        plt.savefig(f"UMAP_node_{node}_projected_{projected_node}.png")

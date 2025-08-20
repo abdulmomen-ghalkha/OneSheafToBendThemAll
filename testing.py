@@ -228,14 +228,14 @@ def cross_modal_retrieval(test_loader, query_mod=0, gallery_mod=1, top_k=(1,5,10
 
 
 # ====== 5. Run evaluations ======
-if __name__ == "__main__":
-    # Zero-shot on raw and reconstructed embeddings
-    zero_shot_eval(test_loader=train_dataset[0], mod_idx=1, use_reconstruction=False)
-    zero_shot_eval(test_loader=train_dataset[0], mod_idx=1, use_reconstruction=True)
+#if __name__ == "__main__":
+#    # Zero-shot on raw and reconstructed embeddings
+#    zero_shot_eval(test_loader=train_loaders[0], mod_idx=1, use_reconstruction=False)
+#    zero_shot_eval(test_loader=train_loaders[0], mod_idx=1, use_reconstruction=True)
 
-    # Cross-modal retrieval
-    cross_modal_retrieval(test_loader=train_dataset[0], query_mod=1, gallery_mod=0, use_reconstruction=False)
-    cross_modal_retrieval(test_loader=train_dataset[0], query_mod=1, gallery_mod=0, use_reconstruction=True)
+#    # Cross-modal retrieval
+#    cross_modal_retrieval(test_loader=train_loaders[0], query_mod=1, gallery_mod=0, use_reconstruction=False)
+#    cross_modal_retrieval(test_loader=train_loaders[0], query_mod=1, gallery_mod=0, use_reconstruction=True)
 
 
 
@@ -294,22 +294,32 @@ def encode_modality(node_idx, loader):
     return embs, labels
 
 
-embs, labels = encode_modality(1, test_loaders[0])
+
 
 
 
 import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import numpy as np
+import umap
+import matplotlib.pyplot as plt
+
+
 
 
 for node in modality_node_dict:
-    node = 1
+
+    embs, labels = encode_modality(node, test_loaders[0])
+
     all_embeddings = embs[node][node]
     all_labels = labels[node]
 
     X = all_embeddings.cpu().numpy()
     all_labels = all_labels.cpu().numpy()
+
+
+    
 
 
     # Run t-SNE to reduce dimensionality to 2D
@@ -332,9 +342,7 @@ for node in modality_node_dict:
 
 
 
-    import numpy as np
-    import umap
-    import matplotlib.pyplot as plt
+
 
 
     for projected_node in modality_node_dict:
@@ -370,10 +378,10 @@ for node in modality_node_dict:
             c=y_ref, cmap='tab10', alpha=0.8
         )
         axes[0].set_title(f"UMAP Projection of modality {modality_node_dict[node]} (Direct)")
-        axes[0].set_xlabel("UMAP-1")
-        axes[0].set_ylabel("UMAP-2")
+        axes[0].set_xlabel("Dimension 1")
+        axes[0].set_ylabel("Dimension 2")
         axes[0].grid(True)
-        legend1 = axes[0].legend(*sc1.legend_elements(), title="Digit Label", loc="best")
+        legend1 = axes[0].legend(*sc1.legend_elements(), title="Label", loc="best")
         axes[0].add_artist(legend1)
 
         # Plot reconstructed embeddings
@@ -382,10 +390,10 @@ for node in modality_node_dict:
             c=y_target, cmap='tab10', alpha=0.8
         )
         axes[1].set_title(f"UMAP Projection at modality {modality_node_dict[node]} reconstructed from modality {modality_node_dict[projected_node]}")
-        axes[1].set_xlabel("UMAP-1")
-        axes[1].set_ylabel("UMAP-2")
+        axes[1].set_xlabel("Dimension 1")
+        axes[1].set_ylabel("Dimension 2")
         axes[1].grid(True)
-        legend2 = axes[1].legend(*sc2.legend_elements(), title="Digit Label", loc="best")
+        legend2 = axes[1].legend(*sc2.legend_elements(), title="Label", loc="best")
         axes[1].add_artist(legend2)
 
         plt.tight_layout()
